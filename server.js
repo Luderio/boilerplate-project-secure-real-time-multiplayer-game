@@ -4,11 +4,33 @@ const bodyParser = require('body-parser');
 const expect = require('chai');
 const socket = require('socket.io');
 const cors = require('cors');
+const helmet = require('helmet');
+const noCache = require('nocache')
+
+// import Collectible from './public/Collectible.mjs';
 
 const fccTestingRoutes = require('./routes/fcctesting.js');
 const runner = require('./test-runner.js');
 
 const app = express();
+
+//--------------SECURITY-------------
+
+//mounted the helmet.hidePoweredBy() middleware to hide the "X-Powered-By: Express" header.
+app.use(helmet.hidePoweredBy({setTo: 'PHP 7.4.3'}));
+
+// mounted helmet.noSniff() to Avoid Inferring the Response MIME Type.
+app.use(helmet.noSniff({}));
+
+// mounted helmet.xssFilter() to prevent basic XSS attacks.
+app.use(helmet.xssFilter({}));
+
+// mounted helmet.noCache() to Disable Client-Side Caching.
+app.use(noCache());
+
+
+//----------END OF SECURITY----------
+
 
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use('/assets', express.static(process.cwd() + '/assets'));
