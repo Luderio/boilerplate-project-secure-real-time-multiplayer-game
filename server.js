@@ -6,11 +6,22 @@ const socket = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const noCache = require('nocache')
-
-// import Collectible from './public/Collectible.mjs';
+const http = require('http');
 
 const fccTestingRoutes = require('./routes/fcctesting.js');
 const runner = require('./test-runner.js');
+
+//importing .mjs files
+const Collectible = async function collectible() {
+  const { Collectible } = await import('./public/Collectible.mjs');
+}
+
+const gameState = require('./gameState');
+
+
+
+//============================================================
+
 
 const app = express();
 
@@ -74,5 +85,33 @@ const server = app.listen(portNum, () => {
     }, 1500);
   }
 });
+
+function getRandom(max) {
+  return Math.floor(Math.random() * max);
+}
+
+//SOCKET.IO for setting the connection from server/client
+io = new socket(server);
+io.on('connection', (socket) => {
+  console.log('user has connected', socket.id);
+  socket.on('newPlayer', () => {
+    gameState.players[socket.id] = {x: getRandom(600), y: getRandom(400), score: 0, id: socket.id}
+  });
+
+  socket.on('disconnect', () => {
+    console.log('user has disconnected', socket.id);
+    delete gameState.players[socket.id];
+  });
+
+  setInterval(() => {
+    io.sockets.emit('state', gameState);
+  }, 1000 / 60);
+
+});
+
+
+
+
+
 
 module.exports = app; // For testing
