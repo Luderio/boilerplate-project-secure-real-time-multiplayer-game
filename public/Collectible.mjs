@@ -4,6 +4,7 @@ class Collectible {
     this.y = y;
     this.value = value;
     this.id = id;
+    this.radius = 20
   }
 
 collectibleCoins() {
@@ -12,7 +13,7 @@ collectibleCoins() {
   let context = canvas.getContext('2d');
 
   context.fillStyle = COIN_COLOR;
-  context.fillRect(this.x,this.y, 10,10)
+  context.fillRect(this.x-this.radius, this.y-this.radius, 10,10)
 }
 
 }

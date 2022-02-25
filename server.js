@@ -11,18 +11,6 @@ const http = require('http');
 const fccTestingRoutes = require('./routes/fcctesting.js');
 const runner = require('./test-runner.js');
 
-//importing .mjs files
-const Collectible = async function collectible() {
-  const { Collectible } = await import('./public/Collectible.mjs');
-}
-
-const gameState = require('./gameState');
-
-
-
-//============================================================
-
-
 const app = express();
 
 //--------------SECURITY-------------
@@ -86,28 +74,94 @@ const server = app.listen(portNum, () => {
   }
 });
 
-function getRandom(max) {
-  return Math.floor(Math.random() * max);
+//importing .mjs files
+const Player = require('./public/Player');
+const Collectible = require('./public/Collectible');
+const {dimension} = require('./public/dimension');
+//============================================================
+
+const random = (min, max) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+const getRandomPosition = () => {
+  let x = random(dimension.minX+50, dimension.maxX-50);
+  let y = random(dimension.minY+50, dimension.maxY-50);
+  x = Math.floor(x/10) * 10;
+  y = Math.floor(y/10) * 10;
+
+  return [x,y];
+}
+
+let playersList = [];
+let [coinX,coinY] = getRandomPosition();
+let coin = new Collectible({x:coinX,y:coinY,value:1, id:Date.now()})
+let connections = [];
+
 //SOCKET.IO for setting the connection from server/client
-io = new socket(server);
+io = socket(server);
 io.on('connection', (socket) => {
   console.log('user has connected', socket.id);
-  socket.on('newPlayer', () => {
-    gameState.players[socket.id] = {x: getRandom(600), y: getRandom(400), score: 0, id: socket.id}
-  });
+  connections.push(socket);
+  console.log('Connected: %s sockets connected.',connections.length);
 
-  socket.on('disconnect', () => {
-    console.log('user has disconnected', socket.id);
-    delete gameState.players[socket.id];
-  });
+  let [positionX,positionY] = getRandomPosition();
+  let player = new Player({x:positionX,y:positionY,score:0,id:socket.id});
 
-  setInterval(() => {
-    io.sockets.emit('state', gameState);
-  }, 1000 / 60);
+  playersList.push(player);
+
+  socket.emit('init', {id: socket.id, players: playersList, coin: coin});
+
+  socket.on('update', (updatedUser) => {
+    playersList.forEach(user => {
+        if(user.id === socket.id){
+            user.x = updatedUser.x;
+            user.y = updatedUser.y;
+            user.score = updatedUser.score;
+        }
+    });
+    io.emit('update', {players: playersList, coin: coin, player: null});
+});
+
+  
+
+socket.on('disconnect', () => {
+  console.log(`deconnection ${socket.id}`);
+  socket.broadcast.emit('remove-player', socket.id);
+  connections.splice(connections.indexOf(socket), 1);
+  playersList = playersList.filter(player => player.id !== socket.id);
+  console.log('Disconnected: %s sockets connected.', connections.length);
+});
 
 });
+
+setInterval(tick, 1000/60); 
+function tick() {
+    let playerUpdate = null;
+
+    playersList.forEach(player => {
+  
+      let p = new Player(player);
+      if (p.collision(coin)) {
+        player.score += 1;
+        let [coinX,coinY] = getRandomPosition();
+        coin = new Collectible({x:coinX,y:coinY,value:1, id:Date.now()})
+        playerUpdate = player;
+      }
+    });
+    
+    io.emit('update', {
+      players: playersList,
+      coin: coin,
+      player: playerUpdate
+    });
+  }
+
+
+
+
+
+
 
 
 
